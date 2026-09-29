@@ -1,0 +1,10 @@
+name = "code-translator-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-29"
+
+[vars]
+# 逗号分隔，不要写 *。部署后替换成你的 Pages 域名和自定义域名。
+ALLOWED_ORIGINS = "http://localhost:5173,https://YOUR_NAME.github.io"
+OPENAI_MODEL = "gpt-4o-mini"
+
+# API Key 请使用 `pnpm wrangler secret put OPENAI_API_KEY` 设置，切勿写在此文件。
