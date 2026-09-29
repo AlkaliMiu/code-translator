@@ -46,16 +46,16 @@ export function EditorPanel({
       inherit: true,
       rules: [
         { token: 'comment', foreground: '7a817e', fontStyle: 'italic' },
-        { token: 'keyword', foreground: '6f42c1' },
-        { token: 'string', foreground: '9b4d25' },
+        { token: 'keyword', foreground: '4f46e5' },
+        { token: 'string', foreground: 'a84b13' },
       ],
       colors: {
-        'editor.background': '#fbfaf7',
-        'editorLineNumber.foreground': '#a4aaa6',
-        'editorLineNumber.activeForeground': '#1c6b5a',
-        'editor.lineHighlightBackground': '#eef5f1',
-        'editorCursor.foreground': '#1c6b5a',
-        'editor.selectionBackground': '#cce4db',
+        'editor.background': '#fbfcff',
+        'editorLineNumber.foreground': '#9aa3b2',
+        'editorLineNumber.activeForeground': '#4f46e5',
+        'editor.lineHighlightBackground': '#f0f2ff',
+        'editorCursor.foreground': '#4f46e5',
+        'editor.selectionBackground': '#dfe3ff',
       },
     })
     monaco.editor.defineTheme('translator-dark', {
@@ -63,16 +63,16 @@ export function EditorPanel({
       inherit: true,
       rules: [
         { token: 'comment', foreground: '8d9993', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'c4a7e7' },
-        { token: 'string', foreground: 'f2ba8a' },
+        { token: 'keyword', foreground: 'c4b5fd' },
+        { token: 'string', foreground: 'fdba74' },
       ],
       colors: {
-        'editor.background': '#161b19',
-        'editorLineNumber.foreground': '#66706b',
-        'editorLineNumber.activeForeground': '#8dd3bd',
-        'editor.lineHighlightBackground': '#202925',
-        'editorCursor.foreground': '#8dd3bd',
-        'editor.selectionBackground': '#315e50',
+        'editor.background': '#171922',
+        'editorLineNumber.foreground': '#667085',
+        'editorLineNumber.activeForeground': '#a5b4fc',
+        'editor.lineHighlightBackground': '#212537',
+        'editorCursor.foreground': '#a5b4fc',
+        'editor.selectionBackground': '#353b66',
       },
     })
     instance.onDidChangeCursorPosition(({ position }) => onCursorLine(position.lineNumber))
@@ -96,7 +96,7 @@ export function EditorPanel({
           className: 'explanation-line-highlight',
           linesDecorationsClassName: 'explanation-line-marker',
           overviewRuler: {
-            color: theme === 'dark' ? '#8dd3bd' : '#1c6b5a',
+            color: theme === 'dark' ? '#a5b4fc' : '#4f46e5',
             position: 4,
           },
         },
