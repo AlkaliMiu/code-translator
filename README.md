@@ -1,47 +1,112 @@
-# 代码翻译器
+<div align="center">
 
-把一段陌生的 Python、JavaScript 或 TypeScript 代码，转换成初学者可以逐步阅读的交互式教材。
+# Code Translator
 
-这不是聊天壳：结果会固定拆成一句话概览、执行流程、代码步骤、关键概念、注意事项和小测验。解释步骤与 Monaco Editor 中的代码行双向联动。
+**Turn unfamiliar code into a step-by-step lesson.**
 
-## 已实现
+Paste Python, JavaScript, or TypeScript and get a plain-language walkthrough: purpose first, then the flow, each step linked to the lines it explains, key concepts, things to watch out for, and a quick quiz.
 
-- Monaco Editor：行号、语法高亮、编辑、粘贴、清空与代码行高亮
-- Python / JavaScript / TypeScript 选择和粘贴时的简单自动识别
-- 中文 / English 界面切换，并同步切换示例、Demo 教材和 AI 输出语言
-- 5 个短小示例：Python 循环、列表推导式、JS 数组、异步请求、TS 接口
-- 零基础 / 入门 / 进阶三种解释深度
-- 结构化结果：`summary`、`flow`、`steps`、`concepts`、`warnings`、`quiz`
-- 点击或聚焦解释步骤时高亮代码；点击代码行时定位对应步骤
-- “用更简单的话解释”、测验反馈、加载/空白/错误状态
-- 浅色与深色主题、键盘焦点、减少动态效果、桌面/手机响应式布局
-- 无密钥可完整体验的本地 Demo provider，并在界面明确标识
-- 可替换的 HTTP provider，包含超时、错误和畸形响应兜底
-- GitHub Pages 自动部署工作流
-- 可选 Cloudflare Worker AI 后端示例
+[**Live demo**](https://alkalimiu.github.io/code-translator/) · [中文说明](README.zh-CN.md) · [Report an issue](https://github.com/AlkaliMiu/code-translator/issues)
 
-## 本地运行
+[![CI](https://github.com/AlkaliMiu/code-translator/actions/workflows/ci.yml/badge.svg)](https://github.com/AlkaliMiu/code-translator/actions/workflows/ci.yml)
+[![Deploy](https://github.com/AlkaliMiu/code-translator/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/AlkaliMiu/code-translator/actions/workflows/deploy-pages.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1f6f5c.svg)](LICENSE)
 
-需要 Node.js 22+ 与 pnpm 11。
+![Code Translator explaining a Python loop: the second step is highlighted together with lines 4–6 in the editor](docs/screenshots/desktop-light.png)
+
+</div>
+
+## Why
+
+People who are new to programming usually meet the syntax before they understand the intent. A chat assistant can answer, but the answer is a wall of text that lives apart from the code. Code Translator returns a structured lesson instead and keeps it next to the code: hover a step and its lines light up like a highlighter; click a line and the matching step comes into view.
+
+## Features
+
+- **A lesson, not a chat**: every explanation has the same shape: summary → flow → steps → concepts → things to notice → quiz.
+- **Code and explanation stay linked**: hovering or selecting a step highlights its line range in the Monaco editor; clicking a line selects its step.
+- **Three levels plus "Explain more simply"**: Beginner, Learner and Advanced change vocabulary and depth.
+- **Seven languages**: English (default), 中文, Français, Deutsch, Español, 日本語 and Русский. Examples, demo explanations, error messages and AI output follow the chosen language, and the choice is remembered.
+- **Works without an API key**: a rule-based demo mode runs entirely in the browser and is clearly labelled as such.
+- **Optional AI backend**: a Cloudflare Worker calls the OpenAI Responses API with a strict JSON Schema.
+- **Code is never executed**, and in demo mode it never leaves the browser.
+- **Comfortable to use**: light and dark themes, <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to translate, full keyboard support, reduced-motion support, and layouts from 320 px phones to wide desktops.
+
+<p align="center">
+  <img src="docs/screenshots/desktop-dark.png" alt="Dark theme with the Japanese interface explaining a JavaScript filter and map chain" width="68%">
+  &nbsp;
+  <img src="docs/screenshots/mobile.png" alt="Chinese interface on a phone showing the summary, flow and steps" width="22%">
+</p>
+
+## How it works
+
+```mermaid
+flowchart LR
+  editor["Monaco editor"] -- "code · language · level · locale" --> provider{"ExplanationProvider"}
+  provider -- demo --> rules["Rule-based explainer<br/>(runs in the browser)"]
+  provider -- http --> worker["Cloudflare Worker<br/>validation · CORS · timeout"]
+  worker -- "strict JSON Schema" --> llm["OpenAI Responses API"]
+  worker --> normalize["normalizeExplanation<br/>(clamps lines, fills gaps)"]
+  rules --> panel["Result panel"]
+  normalize --> panel
+  panel -. step ↔ line range .-> editor
+```
+
+**Tech stack:** React 19, TypeScript, Vite, Monaco Editor, Vitest, ESLint, Cloudflare Workers, GitHub Actions and GitHub Pages.
+
+## Design decisions
+
+- **Structured output over free text.** A fixed schema mirrors how a teacher explains code (what it is for, how it runs, line by line) and gives the UI line ranges it can link to the editor.
+- **Model output is untrusted.** The Worker asks for a strict JSON Schema and re-checks the result. The client then runs `normalizeExplanation`, which clamps line numbers to the real file, caps list lengths and fills missing fields in the reader's language.
+- **Pasted code is untrusted too.** The prompt fences it inside `<UNTRUSTED_CODE>` and tells the model to ignore any instructions it contains. Nothing is run, and URLs in the code are never visited.
+- **Swappable providers.** The demo and HTTP providers share one `ExplanationProvider` interface, so the whole UI works offline, in CI and on GitHub Pages without secrets.
+- **Errors are codes, not sentences.** The Worker returns `{ code, error }`, and the client turns `code` into a message in the reader's language. The English `error` text is only for logs.
+- **Translations are type-checked.** Every locale implements one `Messages` interface, so a missing key is a compile error. Tests also fail if an interface string was left in English. Plurals use `Intl.PluralRules` (Russian: 1 строка, 3 строки, 5 строк), and numbers use `Intl.NumberFormat` (12,000 · 12.000 · 12 000).
+- **Typography follows the language.** `<html lang>` tracks the interface, so Japanese gets Japanese fonts instead of Chinese glyph forms, Japanese headings break at phrase boundaries (`word-break: auto-phrase`), and German, French, Spanish and Russian paragraphs hyphenate.
+- **Accessible by default.** Levels and quiz answers are native radio inputs, focus is always visible, loading is announced with `aria-live`, and motion is reduced when the system asks for it.
+
+## Languages
+
+| Code | Language | Notes |
+| --- | --- | --- |
+| `en` | English | Default |
+| `zh` | 简体中文 | |
+| `fr` | Français | Non-breaking spaces before `: ; ! ?` |
+| `de` | Deutsch | |
+| `es` | Español | |
+| `ja` | 日本語 | Japanese font stack and phrase-aware line breaks |
+| `ru` | Русский | Three plural forms |
+
+The interface starts in English. Picking another language in the header switches the whole app, including example code strings, and the choice is saved in `localStorage`.
+
+**Adding a language**
+
+1. Add its code to `AppLocale` in `src/types/explanation.ts`.
+2. Copy `src/i18n/locales/en.ts`, translate it, and register it in `src/i18n/index.ts`.
+3. Add the language name to `OUTPUT_LANGUAGES` in `worker/src/index.ts`.
+4. Run `pnpm test`. The tests fail if a key is missing, empty or still in English.
+
+## Getting started
+
+You need Node.js 22+ and pnpm 11.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-打开终端显示的本地地址。默认不需要任何 API Key，使用 Demo 模式。
+Open the URL Vite prints. No API key is needed: the app starts in demo mode.
 
-完整检查：
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Starts the Vite dev server |
+| `pnpm test` | Runs the Vitest unit tests |
+| `pnpm lint` | Runs ESLint |
+| `pnpm build` | Type-checks and builds for production |
+| `pnpm check` | Runs all of the above plus the Worker type check (this is what CI runs) |
 
-```bash
-pnpm check
-```
+## Configuration
 
-该命令依次执行 ESLint、Vitest 单元测试、生产构建和 Worker TypeScript 检查。
-
-## 前端配置
-
-复制 `.env.example` 为 `.env.local`：
+Copy `.env.example` to `.env.local`:
 
 ```env
 VITE_AI_PROVIDER=demo
@@ -49,42 +114,31 @@ VITE_AI_ENDPOINT=https://your-worker.example.workers.dev
 VITE_AI_TIMEOUT_MS=25000
 ```
 
-- `demo`：只在浏览器中运行本地解释规则，不上传代码。
-- `http`：向 `${VITE_AI_ENDPOINT}/explain` 发送结构化请求。
-- 所有 `VITE_` 变量都会进入前端构建产物，所以这里只能放公开配置，**绝不能放 API Key**。
+- `demo`: explanations come from local rules in the browser, and code is never uploaded.
+- `http`: the app sends a structured request to `${VITE_AI_ENDPOINT}/explain`.
+- Every `VITE_` variable ends up in the public bundle, so **never put an API key here**.
 
-产品名称集中在 `src/config/brand.ts`，以后更名只需从这里开始修改。
+## Deployment
 
-## 部署到 GitHub Pages
+### GitHub Pages
 
-1. 把 `code-translator` 目录作为仓库根目录推送到 GitHub，默认分支命名为 `main`。
-2. 在仓库 **Settings → Pages → Build and deployment** 中，将 Source 选择为 **GitHub Actions**。
-3. 推送 `main`，或在 Actions 页面手动运行 `Deploy to GitHub Pages`。
-4. 工作流会安装依赖、完成全部检查、上传 `dist` 并发布。
+1. Push the repository with `main` as the default branch.
+2. In **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
+3. Push to `main`, or run **Deploy to GitHub Pages** from the Actions tab. The workflow installs dependencies, runs every check, and publishes `dist`.
 
-Vite 使用相对资源基址 `./`，因此同时适配 `username.github.io/repository/` 子路径和自定义域名。本项目没有客户端路由，刷新不会遇到 Pages 的 SPA 回退问题。
+Vite uses a relative base (`./`), so the build works under `username.github.io/repository/` and on a custom domain. There is no client-side routing, so refreshes never hit Pages' 404 fallback.
 
-若要在 Pages 使用真实后端，在仓库 **Settings → Secrets and variables → Actions → Variables** 添加：
+To use the AI backend on Pages, add these **variables** (not secrets, because they are public) under **Settings → Secrets and variables → Actions → Variables**: `VITE_AI_PROVIDER=http`, `VITE_AI_ENDPOINT=https://your-worker.workers.dev`, and optionally `VITE_AI_TIMEOUT_MS`.
 
-- `VITE_AI_PROVIDER=http`
-- `VITE_AI_ENDPOINT=https://你的-worker.workers.dev`
-- 可选 `VITE_AI_TIMEOUT_MS=25000`
+### AI backend (Cloudflare Worker)
 
-这些仍然只能是公开变量。服务端密钥只保存在 Worker Secret 中。
+`worker/` is a standalone Worker. It:
 
-## 配置真实 AI 后端
-
-`worker/` 是一个可独立部署的 Cloudflare Worker 示例。它会：
-
-- 从 `OPENAI_API_KEY` 服务端 Secret 读取密钥
-- 校验语言、解释层级和 12,000 字符上限
-- 28 秒超时并返回清晰的 JSON 错误
-- 仅允许 `ALLOWED_ORIGINS` 中的来源跨域访问
-- 把代码包在“不可信代码”边界内，忽略注释和字符串中的提示词注入
-- 不运行代码，也不访问代码中提到的 URL
-- 要求模型使用严格 JSON Schema，并在转发给前端前再次校验关键字段
-
-首次配置：
+- reads `OPENAI_API_KEY` from a server-side secret;
+- validates the language, level, interface locale and a 12,000-character limit;
+- only answers origins listed in `ALLOWED_ORIGINS`;
+- times out after 28 seconds and always replies with JSON `{ code, error }` errors;
+- fences the code as untrusted input and asks for strict Structured Outputs, then re-checks the result before returning it.
 
 ```bash
 cd worker
@@ -93,28 +147,19 @@ pnpm exec wrangler login
 pnpm exec wrangler secret put OPENAI_API_KEY
 ```
 
-然后编辑 `worker/wrangler.toml`：
+Edit `worker/wrangler.toml`:
 
 ```toml
 [vars]
-ALLOWED_ORIGINS = "http://localhost:5173,https://你的用户名.github.io"
+ALLOWED_ORIGINS = "http://localhost:5173,https://your-name.github.io"
 OPENAI_MODEL = "gpt-4o-mini"
 ```
 
-本地调试与部署：
+Then run `pnpm dev` to try it locally or `pnpm deploy` to publish. Point `VITE_AI_ENDPOINT` at the Worker URL, set `VITE_AI_PROVIDER=http`, and rebuild the frontend. For request fields and supported models, see the [OpenAI Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 
-```bash
-pnpm dev
-pnpm deploy
-```
+## Response shape
 
-部署后，把 Worker 地址配置成前端的 `VITE_AI_ENDPOINT`，把 provider 改为 `http`，再重新构建前端。
-
-Worker 使用 OpenAI Responses API 的 Structured Outputs（`text.format` + strict JSON Schema）。具体字段和支持模型请以[官方 OpenAI Structured Outputs 文档](https://developers.openai.com/api/docs/guides/structured-outputs)为准。
-
-## 返回数据
-
-前端 provider 的统一返回类型位于 `src/types/explanation.ts`，核心形状如下：
+Both providers return the type defined in `src/types/explanation.ts`:
 
 ```ts
 interface ExplanationResult {
@@ -130,40 +175,44 @@ interface ExplanationResult {
     concepts: string[]
   }>
   concepts: Array<{ name: string; explanation: string }>
-  warnings: Array<{ title: string; detail: string; severity: 'note' | 'caution' }>
+  warnings: Array<{ title: string; detail: string; severity: 'note' | 'caution'; lineStart?: number; lineEnd?: number }>
   quiz: { question: string; options: string[]; answer: number; explanation: string }
+  meta: { provider: 'demo' | 'ai'; generatedAt: string; disclaimer: string }
 }
 ```
 
-即使后端返回缺失字段、错误行号或无效答案，`normalizeExplanation` 也会限制数量、修正范围并提供安全默认值。网络超时、非 JSON、非 2xx 和服务不可用都有独立错误提示。
-
-## 安全与隐私
-
-- 本项目只做静态解释，绝不执行用户粘贴的代码。
-- Demo 模式不发送代码；HTTP 模式会把代码发送到你配置的 Worker。
-- 前端明确提醒用户先删除密钥、密码、客户数据等敏感内容。
-- 不要在 `.env*`、前端源码、GitHub Actions 变量或 `wrangler.toml` 中保存 API Key。
-- `.gitignore` 会排除本地环境文件；密钥使用 `wrangler secret`。
-- AI 解释可能遗漏或出错，界面不会把解释声明为确定事实。
-- 面向公共产品时，建议在 Worker 前增加速率限制、滥用防护、日志脱敏与成本告警。
-
-## 项目结构
+## Project structure
 
 ```text
 src/
-  components/     界面组件
-  config/         品牌与产品配置
-  data/           内置示例
-  providers/      Demo / HTTP provider
-  types/          结构化解释类型
-  utils/          语言识别、响应归一化与测试
-worker/            Cloudflare Worker 示例
-.github/workflows/ GitHub Pages 部署
+  components/        UI components (header, editor, result panel, quiz, …)
+  config/            settings shared by every language (repository URL, limits)
+  data/              built-in examples, localized per language
+  i18n/              Messages type, one dictionary per language, and tests
+  providers/         demo and HTTP providers
+  types/             explanation data types
+  utils/             language detection and response normalization
+worker/              Cloudflare Worker AI backend
+docs/screenshots/    images used in this README
+.github/workflows/   CI for pull requests and the GitHub Pages deployment
 ```
 
-## 当前限制
+## Security and privacy
 
-- Demo provider 是启发式规则，适合演示交互，不等同于真实语义分析。
-- 语言自动识别是轻量规则，对很短或混合语言片段可能判断错误，用户可以手动切换。
-- Worker 示例没有持久化用户代码，也没有内置账号系统、速率限制或计费控制。
-- 当前只支持单文件静态解释，不理解整个仓库、依赖关系或运行时状态。
+- The app only reads code. It never executes what you paste.
+- Demo mode keeps code in the browser; HTTP mode sends it to the Worker you configured, and the UI says so.
+- The interface reminds people to remove passwords, keys and customer data before using AI mode.
+- API keys live only in Worker secrets, never in `.env*`, frontend code, Actions variables or `wrangler.toml`.
+- AI explanations can be wrong, and the UI never presents them as certain.
+- For a public deployment, add rate limiting, abuse protection, log redaction and cost alerts in front of the Worker.
+
+## Limitations and ideas
+
+- The demo provider is a set of heuristics. It shows the experience, but it does not understand code the way a model does.
+- Language detection is lightweight and can guess wrong on very short or mixed snippets; you can always switch manually.
+- Explanations cover one file at a time, without repository context, dependencies or runtime state.
+- Ideas for later: more programming languages, shareable links to an explanation, rate limiting in the Worker, and bundling Monaco instead of loading it from a CDN.
+
+## License
+
+[MIT](LICENSE) © 2026 Fangcan Chi

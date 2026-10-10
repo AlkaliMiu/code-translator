@@ -4,7 +4,8 @@ export type ExplanationDepth = 'beginner' | 'intro' | 'advanced'
 
 export type ProviderMode = 'demo' | 'ai'
 
-export type AppLocale = 'zh' | 'en'
+/** Interface and explanation languages. Add a dictionary in `src/i18n/locales` when extending this. */
+export type AppLocale = 'en' | 'zh' | 'fr' | 'de' | 'es' | 'ja' | 'ru'
 
 export interface ExplainRequest {
   code: string

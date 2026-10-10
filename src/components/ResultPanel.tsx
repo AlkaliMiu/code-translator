@@ -1,20 +1,8 @@
-import {
-  AlertTriangle,
-  ArrowDown,
-  BookMarked,
-  BrainCircuit,
-  ChevronRight,
-  CloudOff,
-  Footprints,
-  Lightbulb,
-  LoaderCircle,
-  MousePointer2,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react'
+import { CloudOff, Info, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { getCopy } from '../i18n'
+import { getMessages } from '../i18n'
 import type { AppLocale, ExplanationResult } from '../types/explanation'
+import { InlineText } from './InlineText'
 import { QuizCard } from './QuizCard'
 
 interface ResultPanelProps {
@@ -22,9 +10,11 @@ interface ResultPanelProps {
   isLoading: boolean
   error: string | null
   activeStepId: string | null
+  pinnedStepId: string | null
   isDemo: boolean
   locale: AppLocale
-  onStepActive: (stepId: string | null) => void
+  onStepHover: (stepId: string | null) => void
+  onStepSelect: (stepId: string) => void
   onSimplify: () => void
   onRetry: () => void
 }
@@ -34,29 +24,36 @@ export function ResultPanel({
   isLoading,
   error,
   activeStepId,
+  pinnedStepId,
   isDemo,
   locale,
-  onStepActive,
+  onStepHover,
+  onStepSelect,
   onSimplify,
   onRetry,
 }: ResultPanelProps) {
-  const copy = getCopy(locale)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const { ui } = getMessages(locale)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
+  // Follow the pinned step (e.g. after clicking a code line) without jumping around on hover.
   useEffect(() => {
-    if (!activeStepId) return
-    const activeCard = panelRef.current?.querySelector<HTMLElement>(`[data-step-id="${activeStepId}"]`)
-    activeCard?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [activeStepId])
+    if (!pinnedStepId) return
+    const card = bodyRef.current?.querySelector<HTMLElement>(`[data-step-id="${CSS.escape(pinnedStepId)}"]`)
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [pinnedStepId])
 
   if (isLoading) {
     return (
-      <section className="workspace-panel result-panel state-panel" aria-live="polite">
-        <div className="loading-orbit"><LoaderCircle size={30} /></div>
-        <h2>{copy.loadingTitle}</h2>
-        <p>{copy.loadingBody}</p>
-        <div className="skeleton-stack" aria-hidden="true">
-          <span /><span /><span />
+      <section className="panel result-panel state-panel" aria-live="polite" aria-busy="true">
+        <div className="state-copy">
+          <h2>{ui.loadingTitle}</h2>
+          <p>{ui.loadingBody}</p>
+        </div>
+        <div className="skeleton" aria-hidden="true">
+          <span className="skeleton-heading" />
+          <span /><span /><span className="short" />
+          <span className="skeleton-heading" />
+          <span /><span className="short" />
         </div>
       </section>
     )
@@ -64,167 +61,151 @@ export function ResultPanel({
 
   if (error) {
     return (
-      <section className="workspace-panel result-panel state-panel" role="alert">
-        <span className="state-icon error"><CloudOff size={26} /></span>
-        <h2>{copy.errorTitle}</h2>
+      <section className="panel result-panel state-panel centered" role="alert">
+        <span className="state-icon"><CloudOff size={24} /></span>
+        <h2>{ui.errorTitle}</h2>
         <p>{error}</p>
-        <button className="secondary-button" onClick={onRetry}><RefreshCw size={16} /> {copy.retry}</button>
+        <button type="button" className="secondary-button" onClick={onRetry}><RefreshCw size={15} /> {ui.retry}</button>
       </section>
     )
   }
 
   if (!result) {
     return (
-      <section className="workspace-panel result-panel state-panel empty-state">
+      <section className="panel result-panel state-panel centered empty-state">
         <div className="empty-illustration" aria-hidden="true">
-          <span className="code-chip">for item</span>
-          <ArrowDown size={20} />
-          <span className="words-chip">{locale === 'en' ? 'check each item' : '逐个查看'}</span>
+          <code>for item in cart:</code>
+          <span className="empty-arrow">→</span>
+          <span className="empty-words">{ui.emptyIllustration}</span>
         </div>
-        <h2>{copy.emptyCodeTitle}</h2>
-        <p>{copy.emptyCodeBody}</p>
-        <div className="empty-tips">
-          <span><MousePointer2 size={15} /> {copy.clickTip}</span>
-          <span><BookMarked size={15} /> {copy.staticTip}</span>
-        </div>
+        <h2>{ui.emptyTitle}</h2>
+        <p>{ui.emptyBody}</p>
+        <ul className="empty-tips">
+          <li>{ui.stepHint}</li>
+          <li>{ui.neverRun}</li>
+        </ul>
       </section>
     )
   }
 
   return (
-    <section className="workspace-panel result-panel" aria-labelledby="result-title" ref={panelRef}>
-      <div className="result-toolbar">
-        <div>
-          <div className="eyebrow"><BookMarked size={14} /> {copy.explanationEyebrow}</div>
-          <h2 id="result-title">{copy.resultTitle}</h2>
-        </div>
-        <button className="simplify-button" onClick={onSimplify}>
-          <Sparkles size={15} /> {copy.simplify}
+    <section className="panel result-panel" aria-labelledby="result-title">
+      <div className="panel-header">
+        <h2 id="result-title">{ui.resultTitle}</h2>
+        <button type="button" className="ghost-button" onClick={onSimplify}>
+          <Sparkles size={15} /> {ui.simplify}
         </button>
       </div>
 
-      {isDemo && (
-        <div className="demo-notice" role="status">
-          <Sparkles size={15} />
-          <span><strong>{copy.demoNoticeTitle}</strong> · {copy.demoNoticeBody}</span>
-        </div>
-      )}
+      <div className="result-body" ref={bodyRef}>
+        {isDemo && (
+          <p className="demo-notice" role="status">
+            <Info size={15} aria-hidden="true" />
+            <span><strong>{ui.demoNoticeTitle}</strong> · {ui.demoNoticeBody}</span>
+          </p>
+        )}
 
-      <div className="result-content">
-        <section className="result-card overview-card">
-          <p className="section-kicker">{copy.conclusion}</p>
-          <h3>{result.summary}</h3>
+        <section className="result-section" aria-labelledby="summary-title">
+          <h3 id="summary-title" className="section-title">{ui.summaryTitle}</h3>
+          <p className="summary"><InlineText text={result.summary} /></p>
         </section>
 
-        <section className="result-card flow-card">
-          <div className="section-heading">
-            <span className="section-icon mint"><Footprints size={17} /></span>
-            <div>
-              <p className="section-kicker">{copy.overallFlow}</p>
-              <h3>{copy.dataFlow}</h3>
-            </div>
-          </div>
-          <ol className="flow-list">
-            {result.flow.map((item, index) => (
-              <li key={`${item}-${index}`}>
-                <span>{index + 1}</span>
-                <p>{item}</p>
-                {index < result.flow.length - 1 && <ChevronRight size={16} aria-hidden="true" />}
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="steps-section" aria-labelledby="steps-title">
-          <div className="section-heading standalone">
-            <span className="section-icon yellow"><BrainCircuit size={17} /></span>
-            <div>
-              <p className="section-kicker">{copy.breakdown}</p>
-              <h3 id="steps-title">{copy.walkthrough}</h3>
-            </div>
-            <span className="interaction-hint">{copy.interactionHint}</span>
-          </div>
-          <div className="step-list">
-            {result.steps.map((step, index) => (
-              <article
-                key={step.id}
-                data-step-id={step.id}
-                className={`step-card ${activeStepId === step.id ? 'active' : ''}`}
-                tabIndex={0}
-                role="button"
-                aria-pressed={activeStepId === step.id}
-                onMouseEnter={() => onStepActive(step.id)}
-                onMouseLeave={() => onStepActive(null)}
-                onFocus={() => onStepActive(step.id)}
-                onBlur={() => onStepActive(null)}
-                onClick={() => onStepActive(step.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    onStepActive(step.id)
-                  }
-                }}
-              >
-                <div className="step-number">{String(index + 1).padStart(2, '0')}</div>
-                <div className="step-body">
-                  <div className="step-title-row">
-                    <h4>{step.title}</h4>
-                    <span className="line-badge">{copy.linePrefix} {step.lineStart}{step.lineEnd > step.lineStart ? `–${step.lineEnd}` : ''} {copy.lineSuffix}</span>
-                  </div>
-                  <p>{step.explanation}</p>
-                  <small>{step.detail}</small>
-                  {!!step.concepts.length && (
-                    <div className="inline-tags">
-                      {step.concepts.map((concept) => <span key={concept}>{concept}</span>)}
-                    </div>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {!!result.concepts.length && (
-          <section className="result-card concepts-card">
-            <div className="section-heading">
-              <span className="section-icon blue"><Lightbulb size={17} /></span>
-              <div>
-                <p className="section-kicker">{copy.conceptsKicker}</p>
-                <h3>{copy.conceptsTitle}</h3>
-              </div>
-            </div>
-            <div className="concept-grid">
-              {result.concepts.map((concept) => (
-                <details key={concept.name}>
-                  <summary>{concept.name}<span>＋</span></summary>
-                  <p>{concept.explanation}</p>
-                </details>
+        {!!result.flow.length && (
+          <section className="result-section" aria-labelledby="flow-title">
+            <h3 id="flow-title" className="section-title">{ui.flowTitle}</h3>
+            <ol className="flow-list">
+              {result.flow.map((item, index) => (
+                <li key={`${item}-${index}`}><InlineText text={item} /></li>
               ))}
-            </div>
+            </ol>
           </section>
         )}
 
-        <section className="result-card warnings-card">
-          <div className="section-heading">
-            <span className="section-icon coral"><AlertTriangle size={17} /></span>
-            <div>
-              <p className="section-kicker">{copy.warningsKicker}</p>
-              <h3>{copy.warningsTitle}</h3>
-            </div>
+        <section className="result-section" aria-labelledby="steps-title">
+          <div className="section-title-row">
+            <h3 id="steps-title" className="section-title">{ui.stepsTitle}</h3>
+            <span className="section-hint">{ui.stepHint}</span>
           </div>
-          <div className="warning-list">
-            {result.warnings.map((warning, index) => (
-              <div key={`${warning.title}-${index}`} className={`warning-item ${warning.severity}`}>
-                <strong>{warning.title}</strong>
-                <p>{warning.detail}</p>
-              </div>
-            ))}
-          </div>
+          <ol className="step-list">
+            {result.steps.map((step) => {
+              const pinned = pinnedStepId === step.id
+              return (
+                <li key={step.id}>
+                  <article
+                    data-step-id={step.id}
+                    className={['step', activeStepId === step.id && 'active', pinned && 'pinned'].filter(Boolean).join(' ')}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={pinned}
+                    onMouseEnter={() => onStepHover(step.id)}
+                    onMouseLeave={() => onStepHover(null)}
+                    onFocus={() => onStepHover(step.id)}
+                    onBlur={() => onStepHover(null)}
+                    onClick={() => onStepSelect(step.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onStepSelect(step.id)
+                      }
+                    }}
+                  >
+                    <div className="step-heading">
+                      <h4>{step.title}</h4>
+                      <span className="line-ref">{ui.lineRange(step.lineStart, step.lineEnd)}</span>
+                    </div>
+                    <p><InlineText text={step.explanation} /></p>
+                    <p className="step-detail"><InlineText text={step.detail} /></p>
+                    {!!step.concepts.length && (
+                      <ul className="tag-list">
+                        {step.concepts.map((concept) => <li key={concept}>{concept}</li>)}
+                      </ul>
+                    )}
+                  </article>
+                </li>
+              )
+            })}
+          </ol>
         </section>
 
-        <QuizCard quiz={result.quiz} locale={locale} />
+        {!!result.concepts.length && (
+          <section className="result-section" aria-labelledby="concepts-title">
+            <h3 id="concepts-title" className="section-title">{ui.conceptsTitle}</h3>
+            <dl className="concept-list">
+              {result.concepts.map((concept) => (
+                <div key={concept.name}>
+                  <dt>{concept.name}</dt>
+                  <dd><InlineText text={concept.explanation} /></dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
 
-        <p className="result-disclaimer">{result.meta.disclaimer}</p>
+        {!!result.warnings.length && (
+          <section className="result-section" aria-labelledby="warnings-title">
+            <h3 id="warnings-title" className="section-title">{ui.warningsTitle}</h3>
+            <ul className="callout-list">
+              {result.warnings.map((warning, index) => (
+                <li key={`${warning.title}-${index}`} className={`callout ${warning.severity}`}>
+                  {warning.severity === 'caution'
+                    ? <TriangleAlert size={16} aria-hidden="true" />
+                    : <Info size={16} aria-hidden="true" />}
+                  <div>
+                    <strong>{warning.title}</strong>
+                    {warning.lineStart !== undefined && (
+                      <span className="line-ref">{ui.lineRange(warning.lineStart, warning.lineEnd ?? warning.lineStart)}</span>
+                    )}
+                    <p><InlineText text={warning.detail} /></p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <QuizCard key={result.meta.generatedAt} quiz={result.quiz} locale={locale} />
+
+        <p className="disclaimer">{result.meta.disclaimer}</p>
       </div>
     </section>
   )

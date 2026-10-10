@@ -1,58 +1,51 @@
-import { CheckCircle2, CircleHelp, XCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import type { Quiz } from '../types/explanation'
-import type { AppLocale } from '../types/explanation'
-import { getCopy } from '../i18n'
+import { CircleCheck, CircleX } from 'lucide-react'
+import { useId, useState } from 'react'
+import { getMessages } from '../i18n'
+import type { AppLocale, Quiz } from '../types/explanation'
+import { InlineText } from './InlineText'
 
+/** Remount with a new `key` for each explanation to reset the answer. */
 export function QuizCard({ quiz, locale }: { quiz: Quiz; locale: AppLocale }) {
-  const copy = getCopy(locale)
+  const { ui } = getMessages(locale)
+  const name = useId()
   const [selected, setSelected] = useState<number | null>(null)
   const [submitted, setSubmitted] = useState(false)
-
-  useEffect(() => {
-    setSelected(null)
-    setSubmitted(false)
-  }, [quiz])
-
   const correct = selected === quiz.answer
 
   return (
-    <section className="result-card quiz-card" aria-labelledby="quiz-title">
-      <div className="section-heading">
-        <span className="section-icon lavender"><CircleHelp size={17} /></span>
-        <div>
-          <p className="section-kicker">{copy.quizKicker}</p>
-          <h3 id="quiz-title">{copy.quizTitle}</h3>
-        </div>
-      </div>
-      <p className="quiz-question">{quiz.question}</p>
-      <div className="quiz-options" role="radiogroup" aria-label={quiz.question}>
-        {quiz.options.map((option, index) => (
-          <button
-            key={`${option}-${index}`}
-            className={`quiz-option ${selected === index ? 'selected' : ''} ${submitted && index === quiz.answer ? 'correct' : ''}`}
-            role="radio"
-            aria-checked={selected === index}
-            onClick={() => {
-              setSelected(index)
-              setSubmitted(false)
-            }}
-          >
-            <span>{String.fromCharCode(65 + index)}</span>
-            {option}
-          </button>
-        ))}
-      </div>
+    <section className="result-section quiz" aria-labelledby={`${name}-title`}>
+      <h3 id={`${name}-title`} className="section-title">{ui.quizTitle}</h3>
+      <fieldset className="quiz-options">
+        <legend className="quiz-question"><InlineText text={quiz.question} /></legend>
+        {quiz.options.map((option, index) => {
+          const state = submitted && index === quiz.answer ? 'correct' : submitted && index === selected ? 'wrong' : ''
+          return (
+            <label key={`${option}-${index}`} className={['quiz-option', selected === index && 'selected', state].filter(Boolean).join(' ')}>
+              <input
+                type="radio"
+                name={name}
+                checked={selected === index}
+                onChange={() => {
+                  setSelected(index)
+                  setSubmitted(false)
+                }}
+              />
+              <span className="quiz-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
+              <span><InlineText text={option} /></span>
+            </label>
+          )
+        })}
+      </fieldset>
       {!submitted ? (
-        <button className="secondary-button" disabled={selected === null} onClick={() => setSubmitted(true)}>
-          {copy.checkAnswer}
+        <button type="button" className="secondary-button" disabled={selected === null} onClick={() => setSubmitted(true)}>
+          {ui.checkAnswer}
         </button>
       ) : (
         <div className={correct ? 'quiz-feedback correct' : 'quiz-feedback incorrect'} role="status">
-          {correct ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+          {correct ? <CircleCheck size={18} aria-hidden="true" /> : <CircleX size={18} aria-hidden="true" />}
           <div>
-            <strong>{correct ? copy.correct : copy.incorrect}</strong>
-            <p>{quiz.explanation}</p>
+            <strong>{correct ? ui.correct : ui.incorrect}</strong>
+            <p><InlineText text={quiz.explanation} /></p>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { getCopy } from '../i18n'
+import { getMessages } from '../i18n'
 import type { AppLocale, ExplanationDepth } from '../types/explanation'
 
 interface DepthPickerProps {
@@ -10,15 +10,18 @@ interface DepthPickerProps {
 const depthOrder: ExplanationDepth[] = ['beginner', 'intro', 'advanced']
 
 export function DepthPicker({ value, onChange, locale }: DepthPickerProps) {
-  const copy = getCopy(locale)
+  const { ui } = getMessages(locale)
   return (
     <fieldset className="depth-picker">
-      <legend>{copy.depthLegend}</legend>
-      <div className="depth-options">
+      <legend>
+        {ui.depthLabel}
+        <span className="depth-hint"> · {ui.depth[value][1]}</span>
+      </legend>
+      <div className="segmented">
         {depthOrder.map((key) => {
-          const [label, description] = copy.depth[key]
+          const [label, description] = ui.depth[key]
           return (
-            <label key={key} className={value === key ? 'depth-option active' : 'depth-option'}>
+            <label key={key} className={value === key ? 'segment active' : 'segment'} title={description}>
               <input
                 type="radio"
                 name="depth"
@@ -27,7 +30,6 @@ export function DepthPicker({ value, onChange, locale }: DepthPickerProps) {
                 onChange={() => onChange(key)}
               />
               <span>{label}</span>
-              <small>{description}</small>
             </label>
           )
         })}

@@ -1,7 +1,24 @@
 {
   "name": "code-translator",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Turn unfamiliar Python, JavaScript, or TypeScript into a plain-language, step-by-step lesson — in seven languages.",
+  "license": "MIT",
+  "author": "Fangcan Chi (https://github.com/AlkaliMiu)",
+  "homepage": "https://alkalimiu.github.io/code-translator/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlkaliMiu/code-translator.git"
+  },
+  "keywords": [
+    "code-explanation",
+    "education",
+    "react",
+    "typescript",
+    "monaco-editor",
+    "i18n",
+    "cloudflare-workers"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

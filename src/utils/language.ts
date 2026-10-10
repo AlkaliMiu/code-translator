@@ -12,7 +12,8 @@ const TYPESCRIPT_SIGNALS = [
   /\b(interface|type|enum)\s+\w+/,
   /:\s*(string|number|boolean|unknown|never)(?:\[\])?/,
   /\bimplements\s+\w+/,
-  /\bas\s+(const|\w+)/,
+  // Only TypeScript-specific casts: a bare `as name` also appears in Python imports and English comments.
+  /\bas\s+(const|string|number|boolean|unknown|any)\b/,
 ]
 
 const JAVASCRIPT_SIGNALS = [
@@ -26,14 +27,19 @@ function score(code: string, signals: RegExp[]): number {
   return signals.reduce((total, signal) => total + (signal.test(code) ? 1 : 0), 0)
 }
 
-export function detectLanguage(code: string): SupportedLanguage {
+// Comments are prose, and words like "type of" in them should not count as code.
+const stripComments = (code: string) =>
+  code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)(\/\/|#).*$/gm, '$1')
+
+export function detectLanguage(source: string): SupportedLanguage {
+  const code = stripComments(source)
   const scores: Record<SupportedLanguage, number> = {
     python: score(code, PYTHON_SIGNALS),
     typescript: score(code, TYPESCRIPT_SIGNALS),
     javascript: score(code, JAVASCRIPT_SIGNALS),
   }
 
-  if (scores.typescript > 0 && scores.typescript >= scores.javascript) return 'typescript'
-  if (scores.python > scores.javascript) return 'python'
-  return 'javascript'
+  // TypeScript is a superset of JavaScript, so JavaScript signals count towards both.
+  if (scores.python > scores.javascript + scores.typescript) return 'python'
+  return scores.typescript > 0 ? 'typescript' : 'javascript'
 }
